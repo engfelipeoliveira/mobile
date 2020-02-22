@@ -1,76 +1,71 @@
+var dataSetFavorites = [];
+
 $(document).ready(function() {
-  $(document).ajaxComplete(function(){
-	  $("#load").hide();
-		$("#search").show();
-		$("#reset").show();
-  });
-
-	$("#search").on("click", function(e) {
-		e.preventDefault();
-		$("#load").show();
-		$("#search").hide();
-		$("#reset").hide();
-		e.stopImmediatePropagation();
-		dataTable.ajax.url("/search-0.0.1-SNAPSHOT/item/search/getByNumberOrDescription?itemNumber="
-    			+ $('#itemNumber').val()
-    			+ "&itemDescription="
-    			+ $('#itemDescription').val()
-    			+ "&contains="
-    			+ $("#contains").is(":checked")).load();
-	});
-
-	$("#reset").on("click", function(e) {
-		e.preventDefault();
-		$('#itemNumber').val("");
-		$('#itemDescription').val("");
-		$("#contains").prop("checked", false);
-		$("#search").trigger("click");
+	
+	// set arrays of the news by suject type
+	getDate();
+	getNews('sport');
+	getNews('business');
+	getNews('financial');
+	
+	// add news into array of the favorites
+	$(".add-favorite").on("click", function(e) {
+		var idLine = $(this).attr("id");
+		var newsExists = false;
+		$.each(dataSetFavorites, function() {
+			if(idLine == this.idLine){
+				newsExists = true;
+				return false;
+			}	
+		});	
+		
+		if(!newsExists){
+			var publishedAt = $("#publishedAt" + idLine).html();
+			var description = $("#description" + idLine).html();
+			dataSetFavorites.push({idLine, publishedAt, description});
+			setFavorite();			
+		}	
 	});
 	
-	$(document).on('keypress', function(e) {
-		if (e.which == 13) {
-			$("#search").trigger("click");
-		}
-	});
-
-	$(window).on('load', function() {
-		$('#cookieModal').modal('show');
-	});
-
-	$('#cookieModal').on('hidden.bs.modal', function() {
-		$("#itemNumber").focus();
-	});
-	
-	$("#reject").on("click", function(e) {
-		e.preventDefault();
-		window.location.href='logout';
-	});
-	
-	var dataTable = $('#dataTable').DataTable( {
-		"searching": false,
-		"info": true,
-		"lengthChange": false,
-        "ajax": {
-            "url": "/search-0.0.1-SNAPSHOT/item/search/getByNumberOrDescription?itemNumber="
-    			+ $('#itemNumber').val()
-    			+ "&itemDescription="
-    			+ $('#itemDescription').val()
-    			+ "&contains="
-    			+ $("#contains").is(":checked"),
-            "type": "GET"
-        },
-        "columns": [
-            { "data": "ITEM_NUMBER" },
-            { "data": "ITEM_DESCRIPTION" },
-            { "data": "UPC_CODE" },
-            { "data": "MANUFACTURER" },
-            { "data": "CATEGORY" },
-            { "data": "DIVISION" },
-            { "data": "QUANTITY_AVAILABLE" },
-            { "data": "NEXT_DATE_RECEIPT" }
-        ]
-    } 
-	
-	);
-
 });
+
+// get moment date and shows into home page
+function getDate() {
+	$('#dataTable-home').html(new Date());	
+}
+
+// call rest-service from website news-api
+function getNews(type) {	
+	var url = 'http://newsapi.org/v2/everything?q='+type+'&apiKey=d77b40b94e714053b0e20391cad1954b';
+	var count = 0;
+	$.ajax({
+		url : url,
+		type : "GET",
+		async : false, 
+		success : (function(data, status, jqXhr) {
+			$.each(data.articles, function() {
+				var id = type + count;
+				var line = "<tr><td id='publishedAt"+id+"'>"+ new Date(this.publishedAt).toLocaleDateString("en-IE") +"</td>" 
+				+ "<td id='description"+id+"'>"+ this.description +"</td>"
+				+ "<td><a href='#' id='"+id+"' class='add-favorite'>add</a></td></tr>";
+				setDataTable(line, type);
+				count++; 
+			});			
+		})
+	});
+}
+
+// parse json to datatable
+function setDataTable(line, type) {
+	$('#tbody-' + type).append(line);	
+}
+
+// parse array to favorite datatable
+function setFavorite() {
+	$('#tbody-favorites').empty();
+	$.each(dataSetFavorites, function() {
+		var line = "<tr><td>"+ this.publishedAt +"</td>" 
+		+ "<td>"+ this.description +"</td>"
+		setDataTable(line, 'favorites');
+	});		
+}
